@@ -30,6 +30,8 @@ Tudo fica dentro do seu perfil (`%LOCALAPPDATA%\tecjustica-pje`). Depois,
 
 ### WSL, Linux ou macOS
 
+Testado no WSL (Ubuntu). No macOS o instalador ainda não foi executado.
+
 ```sh
 curl -fsSL https://raw.githubusercontent.com/marcosmarf27/pje-cli/main/instalar.sh | sh
 ```
@@ -120,8 +122,8 @@ motivo está no fim do `indice.txt`.
   numa issue.
 - **Não funciona no PJe KZ** (endereço com `pjekz`, como o do TRT2), que não tem
   as rotas de que o `pje` depende. Ele avisa e para.
-- Windows 10 ou 11, Linux ou macOS, com Google Chrome (no Windows, o Edge também
-  serve).
+- Windows 10 ou 11, WSL ou Linux, com Google Chrome (no Windows, o Edge também
+  serve). O macOS deve funcionar, mas não foi testado.
 
 ## Problemas comuns
 
@@ -132,7 +134,7 @@ motivo está no fim do `indice.txt`.
 | Peça com **403** | Quase sempre é peça **cancelada** (o título aparece riscado no PJe). A ausência está certa. |
 | *"precisa ser aberta no PJe"* | O PJe só monta certas peças depois de abertas. Abra o processo no PJe e rode o `pje baixar` de novo. |
 | *"não foi encontrado nesta instância"* | Tribunal ou grau diferente do login, dígito errado, ou processo sigiloso sem acesso. No TJCE, também processo que ainda está no e-SAJ. |
-| O Claude Code diz *"pdftoppm is not installed"* | Falta o Poppler. No Windows, rode a linha de instalação de novo e reabra o Claude Code. No Linux, `sudo apt install -y poppler-utils`. |
+| O Claude Code diz *"pdftoppm is not installed"* | Ele não acha o Poppler, que lê PDF com mais de 10 páginas. Reabra o Claude Code (o PATH novo só vale para programas abertos depois). Se continuar, no Windows rode a linha de instalação de novo; no Linux, `sudo apt install -y poppler-utils`. Enquanto isso, a skill renderiza as páginas em imagem e as lê assim. |
 | *"pje não é reconhecido como comando"* | Abra um terminal novo (o PATH muda só nos terminais abertos depois da instalação). |
 
 ## Atualizar e desinstalar

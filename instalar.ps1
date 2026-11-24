@@ -97,25 +97,28 @@
   # caminho fixo, e o tipo REG_EXPAND_SZ se perde para sempre. Aqui o valor e
   # lido CRU e gravado com o tipo que tinha.
   # PJE_INSTALAR_SEM_PATH=1 pula o registro (teste numa maquina ja configurada).
-  function Add-PathUsuario($pasta) {
+  # `$nome` existe para o teste exercitar ESTA funcao num valor descartavel.
+  function Add-PathUsuario($pasta, $nome = "Path") {
     $env:Path = $env:Path + ";" + $pasta
     if ($env:PJE_INSTALAR_SEM_PATH -eq "1") { return $false }
     $chave = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey("Environment", $true)
     try {
-      $cru = $chave.GetValue("Path", "", [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames)
+      $cru = $chave.GetValue($nome, "", [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames)
       $tipo = [Microsoft.Win32.RegistryValueKind]::ExpandString
-      if ($chave.GetValueNames() -contains "Path") { $tipo = $chave.GetValueKind("Path") }
+      if ($chave.GetValueNames() -contains $nome) { $tipo = $chave.GetValueKind($nome) }
       if (($cru -split ";") -contains $pasta) { return $false }
-      $chave.SetValue("Path", (($cru.TrimEnd(";") + ";" + $pasta).TrimStart(";")), $tipo)
+      $chave.SetValue($nome, (($cru.TrimEnd(";") + ";" + $pasta).TrimStart(";")), $tipo)
     } finally {
       $chave.Close()
     }
     # Avisa o Windows (WM_SETTINGCHANGE), senao o terminal aberto pelo Iniciar
-    # so ve o PATH novo depois de sair e entrar na conta. Gravar e apagar uma
-    # variavel pelo SetEnvironmentVariable e o jeito sem P/Invoke de disparar
-    # o aviso.
+    # so ve o PATH novo depois de sair e entrar na conta. Gravar uma variavel
+    # pelo SetEnvironmentVariable e o jeito sem P/Invoke de disparar o aviso; ela
+    # e APAGADA pelo registro, porque no PowerShell 7 o `$null` passado ao
+    # SetEnvironmentVariable vira texto vazio e a variavel ficava (medido).
     [Environment]::SetEnvironmentVariable("PJE_INSTALAR_AVISO", "1", "User")
-    [Environment]::SetEnvironmentVariable("PJE_INSTALAR_AVISO", $null, "User")
+    $chave = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey("Environment", $true)
+    try { $chave.DeleteValue("PJE_INSTALAR_AVISO", $false) } finally { $chave.Close() }
     return $true
   }
 
@@ -185,30 +188,7 @@
     }
     $PJE = Join-Path $APP "cli\pje.mjs"
 
-    # --- 3. Poppler ----------------------------------------------------------
-    Write-Passo "Leitor de PDF para o Claude Code (Poppler)"
-    $popBin = $null
-    if (Get-Command pdftoppm -ErrorAction SilentlyContinue) {
-      Write-Feito "pdftoppm ja disponivel"
-    } else {
-      $existente = $null
-      if (Test-Path $POPDIR) { $existente = Get-ChildItem $POPDIR -Recurse -Filter pdftoppm.exe | Select-Object -First 1 }
-      if (-not $existente) {
-        Write-Aviso "baixando o Poppler (~44 MB) -- sem ele o Claude Code nao le PDF com mais de 10 paginas"
-        $zip = Join-Path $TMP "poppler.zip"
-        Get-Download $POPPLER_URL $zip
-        Test-Sha256 $zip $POPPLER_SHA
-        if (Test-Path $POPDIR) { Remove-Item -Recurse -Force $POPDIR }
-        Expand-Zip $zip $POPDIR
-        $existente = Get-ChildItem $POPDIR -Recurse -Filter pdftoppm.exe | Select-Object -First 1
-        if (-not $existente) { throw "o pacote do Poppler nao tem pdftoppm.exe" }
-      }
-      $popBin = $existente.DirectoryName
-      if (Add-PathUsuario $popBin) { $mudouPath = $true }
-      Write-Feito "pdftoppm em $popBin"
-    }
-
-    # --- 4. Comando pje ------------------------------------------------------
+    # --- 3. Comando pje ------------------------------------------------------
     Write-Passo "Comando pje"
     New-Item -ItemType Directory -Force -Path $BIN | Out-Null
     # UM .cmd so: vale no cmd e no PowerShell e devolve o codigo de saida do
@@ -233,7 +213,7 @@
     if (-not ($teste -match "pje")) { throw "o comando pje nao respondeu: $teste" }
     Write-Feito "pje em $BIN"
 
-    # --- 5. Skill ------------------------------------------------------------
+    # --- 4. Skill ------------------------------------------------------------
     Write-Passo "Skill do Claude Code"
     $fonte = Join-Path $APP "cli\skill\pje-autos"
     if (-not (Test-Path (Join-Path $fonte "SKILL.md"))) { throw "a skill nao veio no pacote ($fonte)" }
@@ -241,6 +221,37 @@
     New-Item -ItemType Directory -Force -Path (Split-Path $SKILL) | Out-Null
     Copy-Item -Recurse $fonte $SKILL
     Write-Feito "skill pje-autos em $SKILL"
+
+    # --- 5. Poppler ----------------------------------------------------------
+    # POR ULTIMO e NAO FATAL: numa maquina de tribunal, proxy ou antivirus podem
+    # barrar um zip cheio de .exe. Sem o Poppler o `pje` funciona e o Claude Code
+    # le tudo, menos PDF com mais de 10 paginas -- nao e motivo para deixar a
+    # pessoa sem o comando e sem a skill.
+    Write-Passo "Leitor de PDF para o Claude Code (Poppler)"
+    try {
+      if (Get-Command pdftoppm -ErrorAction SilentlyContinue) {
+        Write-Feito "pdftoppm ja disponivel"
+      } else {
+        $existente = $null
+        if (Test-Path $POPDIR) { $existente = Get-ChildItem $POPDIR -Recurse -Filter pdftoppm.exe | Select-Object -First 1 }
+        if (-not $existente) {
+          Write-Aviso "baixando o Poppler (~44 MB) -- sem ele o Claude Code nao le PDF com mais de 10 paginas"
+          $zip = Join-Path $TMP "poppler.zip"
+          Get-Download $POPPLER_URL $zip
+          Test-Sha256 $zip $POPPLER_SHA
+          if (Test-Path $POPDIR) { Remove-Item -Recurse -Force $POPDIR }
+          Expand-Zip $zip $POPDIR
+          $existente = Get-ChildItem $POPDIR -Recurse -Filter pdftoppm.exe | Select-Object -First 1
+          if (-not $existente) { throw "o pacote do Poppler nao tem pdftoppm.exe" }
+        }
+        if (Add-PathUsuario $existente.DirectoryName) { $mudouPath = $true }
+        Write-Feito ("pdftoppm em " + $existente.DirectoryName)
+      }
+    } catch {
+      Write-Aviso ("O Poppler nao foi instalado: " + $_.Exception.Message)
+      Write-Aviso "O pje e a skill estao prontos; so PDF com mais de 10 paginas fica sem leitura."
+      Write-Aviso "Rode a linha da instalacao de novo mais tarde (ou numa rede sem bloqueio)."
+    }
 
     # --- Fim -----------------------------------------------------------------
     Write-Host ""

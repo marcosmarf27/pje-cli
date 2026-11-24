@@ -18,7 +18,7 @@ ainda não foi atualizado.
 |---|---|
 | Windows, ferramenta Bash (Git Bash) | `"$LOCALAPPDATA/tecjustica-pje/bin/pje"` |
 | Windows, ferramenta PowerShell | `& "$env:LOCALAPPDATA\tecjustica-pje\bin\pje.cmd"` |
-| WSL, Linux, macOS | `~/.local/bin/pje` |
+| WSL, Linux, macOS (este não testado) | `~/.local/bin/pje` |
 
 Daqui em diante, `pje` quer dizer esse caminho.
 
@@ -148,14 +148,28 @@ processo-<CNJ>/
      digitalizada é lida pela imagem.
    - `.pdf` com **mais de 10 páginas**: com `pages`, em faixas de até 20
      (`"1-20"`, `"21-40"`). O número de páginas está no índice.
-   - Isso exige o `pdftoppm` (Poppler). Se o Read disser que ele falta:
-     - no Windows, rodar de novo a linha de instalação (ela instala o Poppler) e
-       reabrir o Claude Code;
+   - Isso exige o `pdftoppm` (Poppler) no PATH do Claude Code. Se o Read
+     recusar ("pdftoppm is not installed"), **renderize as páginas em imagem e
+     leia as imagens**. Esse caminho não depende do PATH. No Windows, use o
+     Poppler que o instalador deixa na pasta do `pje`:
+
+     ```bash
+     P=$(ls "$(cygpath "$LOCALAPPDATA")"/tecjustica-pje/poppler/*/Library/bin/pdftoppm.exe | head -1)
+     mkdir -p "<pasta do processo>/paginas"
+     "$P" -r 110 -png -f 11 -l 30 "<pasta do processo>/pecas/<arquivo>.pdf" "<pasta do processo>/paginas/<NNN>"
+     ```
+
+     As imagens saem como `paginas/<NNN>-11.png`, `<NNN>-12.png`… (com zeros
+     à esquerda se o PDF tiver 100 páginas ou mais). Leia cada uma com o Read.
+     No WSL ou Linux, é o próprio `pdftoppm`. A pasta `paginas/` não é tocada
+     pelo `pje`.
+   - Para resolver de vez:
+     - reabra o Claude Code, porque o PATH novo só vale para programas abertos
+       depois da instalação;
+     - se ainda faltar, no Windows, rode de novo a linha da instalação;
      - no WSL ou Linux, `sudo apt install -y poppler-utils`;
      - no macOS, `brew install poppler`.
-
-     Enquanto isso, diga ao usuário quais peças ficaram sem leitura. **Nunca
-     finja que leu.**
+   - Peça que ficou sem leitura é dita ao usuário. **Nunca finja que leu.**
 4. Em processo grande, anote os achados (já com a citação) num
    `processo-<CNJ>/analise.md` à medida que lê. O `pje` só mexe em `pecas/`, e
    esse arquivo sobrevive às atualizações.

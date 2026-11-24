@@ -25,19 +25,33 @@ function papelDe(t) {
   return typeof t.tipoParte === "string" ? t.tipoParte : "";
 }
 
-function pessoaDe(p) {
+// A OAB vem entre os documentos da pessoa: `documentosIdentificacao: [{tipo:
+// "OAB", numero}]` (o `tipo` pode vir com espaço no fim, como o "RG " medido).
+function oabDe(p) {
+  const d = (p.documentosIdentificacao || []).find(
+    (x) => x && String(x.tipo || "").trim().toUpperCase() === "OAB" && x.numero
+  );
+  return d ? String(d.numero).trim() : "";
+}
+
+function pessoaDe(p, representante = false) {
   if (!p) return null;
   const nome = p.nomePessoa || p.nomeParte || p.nome || "";
   if (!nome) return null;
+  const papel = papelDe(p.tipoParte);
+  // Advogado sai pela OAB, como no índice da extensão — o CPF dele é dado
+  // pessoal que o índice não precisa, e a OAB é o que identifica quem atua.
+  if (representante) return { nome, papel, documento: "", tipoDocumento: "", oab: oabDe(p), representantes: [] };
   return {
     nome,
-    papel: papelDe(p.tipoParte),
+    papel,
     documento: p.documentoPrincipal || p.documentoIdentificatorio || "",
     tipoDocumento: p.tipoPessoa === "J" ? "CNPJ" : p.tipoPessoa === "F" ? "CPF" : "",
     // Os advogados vêm na MESMA rota, no mesmo formato, e eram descartados: o
     // índice do CLI não dizia quem representa quem, e o da extensão diz
-    // ("rep. …" em `blocoFicha`).
-    representantes: (p.representantes || []).map(pessoaDe).filter(Boolean),
+    // ("rep. …" em `blocoFicha`). A arrow é obrigatória: `.map(pessoaDe)`
+    // passaria o ÍNDICE como `representante`, e o 1º advogado sairia com CPF.
+    representantes: (p.representantes || []).map((r) => pessoaDe(r, true)).filter(Boolean),
   };
 }
 
