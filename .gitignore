@@ -1,0 +1,5 @@
+# A sessão do PJe é credencial ao portador: nunca no repositório.
+sessao.json
+*.tmp
+autos/
+autos-pje/

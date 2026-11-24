@@ -1,0 +1,2 @@
+# O instalador do WSL/Linux precisa de LF: com CRLF o shebang vira `/bin/sh^M`.
+*.sh text eol=lf
