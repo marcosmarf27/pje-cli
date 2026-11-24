@@ -91,12 +91,31 @@
     return ([int]$p[0] -gt 22) -or ([int]$p[0] -eq 22 -and [int]$p[1] -ge 4)
   }
 
+  # PATH do USUARIO, direto no registro, e NAO por
+  # [Environment]::SetEnvironmentVariable: ele le o valor JA EXPANDIDO e grava
+  # como REG_SZ -- o `%USERPROFILE%\...WindowsApps` que o Windows poe ali vira
+  # caminho fixo, e o tipo REG_EXPAND_SZ se perde para sempre. Aqui o valor e
+  # lido CRU e gravado com o tipo que tinha.
+  # PJE_INSTALAR_SEM_PATH=1 pula o registro (teste numa maquina ja configurada).
   function Add-PathUsuario($pasta) {
-    $atual = [Environment]::GetEnvironmentVariable("Path", "User")
-    if (-not $atual) { $atual = "" }
-    if (($atual -split ";") -contains $pasta) { return $false }
-    [Environment]::SetEnvironmentVariable("Path", ($atual.TrimEnd(";") + ";" + $pasta).TrimStart(";"), "User")
     $env:Path = $env:Path + ";" + $pasta
+    if ($env:PJE_INSTALAR_SEM_PATH -eq "1") { return $false }
+    $chave = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey("Environment", $true)
+    try {
+      $cru = $chave.GetValue("Path", "", [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames)
+      $tipo = [Microsoft.Win32.RegistryValueKind]::ExpandString
+      if ($chave.GetValueNames() -contains "Path") { $tipo = $chave.GetValueKind("Path") }
+      if (($cru -split ";") -contains $pasta) { return $false }
+      $chave.SetValue("Path", (($cru.TrimEnd(";") + ";" + $pasta).TrimStart(";")), $tipo)
+    } finally {
+      $chave.Close()
+    }
+    # Avisa o Windows (WM_SETTINGCHANGE), senao o terminal aberto pelo Iniciar
+    # so ve o PATH novo depois de sair e entrar na conta. Gravar e apagar uma
+    # variavel pelo SetEnvironmentVariable e o jeito sem P/Invoke de disparar
+    # o aviso.
+    [Environment]::SetEnvironmentVariable("PJE_INSTALAR_AVISO", "1", "User")
+    [Environment]::SetEnvironmentVariable("PJE_INSTALAR_AVISO", $null, "User")
     return $true
   }
 
