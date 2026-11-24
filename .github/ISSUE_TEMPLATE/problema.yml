@@ -1,0 +1,44 @@
+name: Algo não funcionou
+description: A instalação, o login, o download ou a análise no Claude Code deu erro.
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Obrigado por avisar. **Não cole número de processo, nome de parte nem o conteúdo do `sessao.json`**: a sessão vale como o seu login no PJe.
+  - type: dropdown
+    id: etapa
+    attributes:
+      label: Em que etapa
+      options:
+        - Instalação
+        - Login no PJe
+        - Download dos autos
+        - Análise no Claude Code
+        - Outra
+    validations:
+      required: true
+  - type: dropdown
+    id: sistema
+    attributes:
+      label: Sistema
+      options:
+        - Windows (PowerShell)
+        - Windows (Claude Code / Git Bash)
+        - WSL
+        - Linux
+        - macOS
+    validations:
+      required: true
+  - type: input
+    id: tribunal
+    attributes:
+      label: Tribunal e grau
+      placeholder: TJCE, 1º grau
+  - type: textarea
+    id: relato
+    attributes:
+      label: O que aconteceu
+      description: O que você fez e a mensagem que apareceu. Copie o texto do terminal, se houver.
+      render: text
+    validations:
+      required: true

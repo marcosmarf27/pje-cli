@@ -1,0 +1,39 @@
+name: Testei no meu tribunal
+description: Conte se o pje funcionou no PJe do seu tribunal. Ajuda a saber onde ele funciona.
+title: "Testei no "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Não cole números de processo nem nomes de partes: basta dizer o tribunal, o endereço e o que aconteceu.
+  - type: input
+    id: tribunal
+    attributes:
+      label: Tribunal e grau
+      placeholder: TRF5, 1º grau
+    validations:
+      required: true
+  - type: input
+    id: endereco
+    attributes:
+      label: Endereço do PJe
+      description: O que aparece na barra do navegador até o primeiro pedaço do caminho.
+      placeholder: https://pje1g.trf5.jus.br/pje
+    validations:
+      required: true
+  - type: dropdown
+    id: resultado
+    attributes:
+      label: Resultado
+      options:
+        - Funcionou (login e download)
+        - O login funcionou, o download não
+        - O login não funcionou
+    validations:
+      required: true
+  - type: textarea
+    id: observacoes
+    attributes:
+      label: Observações
+      description: Mensagens do terminal, peças que não vieram, o que mais for útil.
+      render: text

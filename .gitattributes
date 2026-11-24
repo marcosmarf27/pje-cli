@@ -1,2 +1,4 @@
 # O instalador do WSL/Linux precisa de LF: com CRLF o shebang vira `/bin/sh^M`.
 *.sh text eol=lf
+# Imagens: nunca normalizar (um \n trocado corrompe o arquivo em silêncio).
+*.png binary
